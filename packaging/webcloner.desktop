@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=WebCloner
+GenericName=Website copier
+Comment=Copy a website to a folder on your computer
+Exec=webcloner
+Icon=io.github.grangedevgroup_code.webcloner
+Terminal=false
+Categories=Network;Utility;
+Keywords=website;download;mirror;offline;clone;
+StartupWMClass=WebCloner

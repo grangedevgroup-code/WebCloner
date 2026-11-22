@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $repo = 'grangedevgroup-code/WebCloner'
-$base = "https://github.com/$repo/releases/latest/download"
+$base = if ($env:WEBCLONER_BASE_URL) { $env:WEBCLONER_BASE_URL } else { "https://github.com/$repo/releases/latest/download" }
 $dir = Join-Path $env:LOCALAPPDATA 'Programs\WebCloner'
 $shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'WebCloner.lnk'
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WebCloner'

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="WebCloner" Language="1033" Version="$(var.Version)" Manufacturer="Grange Dev Group" UpgradeCode="52627CD5-C5BA-4166-B993-E842AE5385B2">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Description="WebCloner installer" Comments="Copy a website to a folder on your computer" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of WebCloner is already installed." />
+    <Media Id="1" Cabinet="webcloner.cab" EmbedCab="yes" />
+    <Icon Id="WebClonerIcon" SourceFile="packaging/webcloner.ico" />
+    <Property Id="ARPPRODUCTICON" Value="WebClonerIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/grangedevgroup-code/WebCloner" />
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="WebCloner">
+          <Component Id="AppFiles" Guid="E1A6A064-1571-458E-AC51-9DD252E2C577" Win64="yes">
+            <File Id="WebClonerExe" Name="WebCloner.exe" Source="dist/windows/WebCloner.exe" KeyPath="yes" />
+            <File Id="LicenseTxt" Name="LICENSE.txt" Source="LICENSE" />
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Component Id="StartMenuShortcut" Guid="32BF7FF2-6391-47FB-B7F3-0654EACEDF5F" Win64="yes">
+          <Shortcut Id="WebClonerShortcut" Name="WebCloner" Description="Copy a website to a folder on your computer" Target="[INSTALLDIR]WebCloner.exe" WorkingDirectory="INSTALLDIR" Icon="WebClonerIcon" />
+          <RegistryValue Root="HKLM" Key="Software\WebCloner" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </Directory>
+    <Feature Id="Main" Title="WebCloner" Level="1">
+      <ComponentRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Product>
+</Wix>

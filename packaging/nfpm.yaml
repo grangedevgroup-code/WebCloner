@@ -1,0 +1,64 @@
+name: webcloner
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+release: 1
+section: web
+priority: optional
+maintainer: Grange Dev Group <grangedevgroup-code@users.noreply.github.com>
+description: |-
+  Copy a website to a folder on your computer.
+  WebCloner downloads the pages, images, styles and fonts of a site and
+  rewrites the links so the copy works offline or on any static web host.
+vendor: Grange Dev Group
+homepage: https://github.com/grangedevgroup-code/WebCloner
+license: MIT
+contents:
+  - src: dist/webcloner
+    dst: /usr/bin/webcloner
+    file_info:
+      mode: 0755
+  - src: packaging/webcloner.desktop
+    dst: /usr/share/applications/io.github.grangedevgroup_code.webcloner.desktop
+  - src: Icon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/io.github.grangedevgroup_code.webcloner.png
+  - src: LICENSE
+    dst: /usr/share/licenses/webcloner/LICENSE
+overrides:
+  deb:
+    depends:
+      - libgl1
+      - libx11-6
+      - libxcursor1
+      - libxi6
+      - libxinerama1
+      - libxrandr2
+      - libxxf86vm1
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libxkbcommon0
+  rpm:
+    depends:
+      - libGL.so.1()(64bit)
+      - libX11.so.6()(64bit)
+      - libXcursor.so.1()(64bit)
+      - libXi.so.6()(64bit)
+      - libXinerama.so.1()(64bit)
+      - libXrandr.so.2()(64bit)
+      - libXxf86vm.so.1()(64bit)
+      - libwayland-client.so.0()(64bit)
+      - libwayland-cursor.so.0()(64bit)
+      - libwayland-egl.so.1()(64bit)
+      - libxkbcommon.so.0()(64bit)
+  archlinux:
+    depends:
+      - libglvnd
+      - libx11
+      - libxcursor
+      - libxi
+      - libxinerama
+      - libxrandr
+      - libxxf86vm
+      - wayland
+      - libxkbcommon

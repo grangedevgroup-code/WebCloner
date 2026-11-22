@@ -6,22 +6,42 @@ WebCloner copies a website to a folder on your computer. You type the address, p
 
 The copy opens straight from the folder (double-click `index.html`), and you can upload that folder to any static web host to move a site off a site builder.
 
-## Download
+## Install
 
-Get the newest build from the [Releases page](https://github.com/grangedevgroup-code/WebCloner/releases/latest).
-
-**Windows:** download `WebCloner-windows-amd64.zip`, unzip it, and double-click `WebCloner.exe`. The app isn't signed yet, so Windows SmartScreen may warn you the first time. Click **More info** and then **Run anyway**.
-
-**macOS:** download `WebCloner-macos.zip` (one app for Apple silicon and Intel Macs), unzip it and drag WebCloner into Applications. The app isn't notarized, so the first time you open it, right-click it and choose **Open**. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/WebCloner.app` once in Terminal.
-
-**Linux:** download `WebCloner-linux-amd64.tar.xz` (or `arm64`), then:
+**Linux and macOS**, in a terminal:
 
 ```sh
-tar -xf WebCloner-linux-amd64.tar.xz
-cd webcloner && make user-install
+curl -fsSL https://raw.githubusercontent.com/grangedevgroup-code/WebCloner/main/install.sh | sh
 ```
 
-That adds WebCloner to your app menu. Use `sudo make install` to install it for every user instead.
+On Linux this installs the `.deb`, `.rpm` or pacman package with your package manager (it asks for your password through `sudo`), which also brings in the few system libraries WebCloner needs. Add `-s -- --user` after `sh` to put it in `~/.local` without `sudo` instead. On macOS it copies WebCloner into Applications.
+
+**Windows**, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/grangedevgroup-code/WebCloner/main/install.ps1 | iex
+```
+
+That installs WebCloner for your user account and adds it to the Start menu and to Installed apps, where you can uninstall it.
+
+To remove WebCloner later, run `curl -fsSL https://raw.githubusercontent.com/grangedevgroup-code/WebCloner/main/install.sh | sh -s -- --uninstall` on Linux or macOS, or uninstall it from Settings on Windows.
+
+### Downloads
+
+Every release on the [Releases page](https://github.com/grangedevgroup-code/WebCloner/releases/latest) has:
+
+| System | Files |
+| --- | --- |
+| Windows 10 and 11 (64-bit) | `WebCloner-windows-amd64.msi` installer, or `WebCloner-windows-amd64.zip` with a portable `WebCloner.exe` |
+| macOS 11 and newer (Apple silicon and Intel) | `WebCloner-macos.dmg` or `WebCloner-macos.zip` |
+| Debian, Ubuntu, Mint, Pop!_OS | `webcloner_<version>-1_amd64.deb` or `_arm64.deb` |
+| Fedora, RHEL, Alma, Rocky, openSUSE | `webcloner-<version>-1.x86_64.rpm` or `.aarch64.rpm` |
+| Arch, Manjaro, EndeavourOS, CachyOS | `webcloner-<version>-1-x86_64.pkg.tar.zst` (install with `sudo pacman -U`) |
+| Any other Linux | `WebCloner-linux-amd64.AppImage` or `WebCloner-linux-amd64.tar.xz` (and `arm64` versions) |
+
+The Linux builds need glibc 2.27 or newer, so they run on Ubuntu 18.04, Debian 10, RHEL 8 and anything released since. Alpine and other musl-based systems aren't supported yet.
+
+The Windows and macOS apps aren't signed yet. When you download them in a browser, Windows SmartScreen may say it protected your PC; click **More info** and then **Run anyway**. On macOS, right-click WebCloner and choose **Open** the first time. The install commands above avoid both prompts.
 
 ## Using it
 
