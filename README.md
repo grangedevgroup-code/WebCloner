@@ -17,8 +17,8 @@ Get the newest build from the [Releases page](https://github.com/grangedevgroup-
 **Linux:** download `WebCloner-linux-amd64.tar.xz` (or `arm64`), then:
 
 ```sh
-mkdir WebCloner && tar -xf WebCloner-linux-amd64.tar.xz -C WebCloner
-cd WebCloner && make user-install
+tar -xf WebCloner-linux-amd64.tar.xz
+cd webcloner && make user-install
 ```
 
 That adds WebCloner to your app menu. Use `sudo make install` to install it for every user instead.
