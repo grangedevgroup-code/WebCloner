@@ -9,46 +9,57 @@ permissions:
 
 env:
   FYNE_TOOLS: fyne.io/tools/cmd/fyne@v1.7.4
+  NFPM: github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.49.0
 
 jobs:
   linux:
     strategy:
       matrix:
         include:
-          - runner: ubuntu-22.04
+          - runner: ubuntu-24.04
             arch: amd64
-          - runner: ubuntu-22.04-arm
+          - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
-        with:
-          go-version-file: go.mod
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
       - name: Check the tag matches FyneApp.toml
         env:
           TAG: ${{ github.ref_name }}
-        run: grep -q "Version = \"${TAG#v}\"" FyneApp.toml
-      - run: go test -count=1 ./...
+        run: grep -Eq "^\s*Version = \"${TAG#v}\"" FyneApp.toml
+      - name: Build on AlmaLinux 8 (glibc 2.27 baseline)
+        run: docker run --rm -v "$PWD":/src -w /src almalinux:8 packaging/build-linux.sh
+      - name: Check the glibc baseline
+        run: |
+          newest=$(objdump -T dist/webcloner | grep -o 'GLIBC_[0-9.]*' | sort -V | tail -1)
+          echo "newest glibc symbol: $newest"
+          [ "$(printf '%s\n' "$newest" GLIBC_2.28 | sort -V | tail -1)" = GLIBC_2.28 ]
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: go.mod
       - name: Package
+        env:
+          TAG: ${{ github.ref_name }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          go install "$NFPM"
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          packaging/package-linux.sh "${TAG#v}" "$ARCH"
+      - name: Smoke test the packages
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          go install "$FYNE_TOOLS"
-          go build -trimpath -ldflags "-s -w" -o webcloner .
-          ./webcloner version
-          "$(go env GOPATH)/bin/fyne" package -os linux --exe webcloner --name WebCloner --release
-          mv WebCloner.tar.xz "WebCloner-linux-${ARCH}.tar.xz"
+          docker run --rm -v "$PWD/packages":/p:ro debian:12 sh -c "apt-get update -qq && apt-get install -y -qq /p/webcloner_*_${ARCH}.deb >/dev/null && webcloner version"
+          docker run --rm -v "$PWD/packages":/p:ro fedora:latest sh -c "dnf -y -q install /p/webcloner-*.rpm >/dev/null && webcloner version"
+          if [ "$ARCH" = amd64 ]; then
+            docker run --rm -v "$PWD/packages":/p:ro archlinux:latest sh -c "pacman -Sy --noconfirm >/dev/null && pacman -U --noconfirm /p/webcloner-*.pkg.tar.zst >/dev/null && webcloner version"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: linux-${{ matrix.arch }}
-          path: WebCloner-linux-${{ matrix.arch }}.tar.xz
+          path: packages/*
           if-no-files-found: error
 
   macos:
@@ -75,10 +86,16 @@ jobs:
           "$(go env GOPATH)/bin/fyne" package -os darwin --exe webcloner --name WebCloner --release
           codesign --force --deep --sign - WebCloner.app
           ditto -c -k --keepParent WebCloner.app WebCloner-macos.zip
+          mkdir dmg
+          cp -R WebCloner.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname WebCloner -srcfolder dmg -ov -format UDZO WebCloner-macos.dmg
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: macos
-          path: WebCloner-macos.zip
+          path: |
+            WebCloner-macos.zip
+            WebCloner-macos.dmg
           if-no-files-found: error
 
   windows:
@@ -98,7 +115,6 @@ jobs:
         run: |
           go install "$FYNE_TOOLS"
           "$(go env GOPATH)/bin/fyne" package -os windows --name WebCloner --release
-          ls -la
           7z a WebCloner-windows-amd64.zip WebCloner.exe LICENSE README.md
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -112,14 +128,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
+          path: out
           merge-multiple: true
-      - run: sha256sum WebCloner-* > SHA256SUMS
+      - name: Build the MSI
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends wixl
+          mkdir -p dist/windows
+          unzip -o out/WebCloner-windows-amd64.zip WebCloner.exe -d dist/windows
+          wixl -a x64 -D "Version=${TAG#v}" -o out/WebCloner-windows-amd64.msi packaging/webcloner.wxs
+      - name: Checksums
+        run: |
+          cp install.sh install.ps1 out/
+          cd out
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" WebCloner-* SHA256SUMS \
+          gh release create "$TAG" out/* \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "WebCloner $TAG" --generate-notes
