@@ -594,6 +594,7 @@ func (c *cloner) rewriteAll() {
 				continue
 			}
 			walkHTML(doc, fn)
+			dropIntegrity(doc)
 			var buf bytes.Buffer
 			if err := html.Render(&buf, doc); err != nil {
 				continue

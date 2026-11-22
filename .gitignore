@@ -1,0 +1,8 @@
+/webcloner
+/WebCloner
+/dist/
+/fyne-cross/
+*.test
+*.exe
+*.app/
+*.tar.xz

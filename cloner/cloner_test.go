@@ -39,7 +39,7 @@ func testSite(t *testing.T) (*httptest.Server, *httptest.Server) {
 		}
 	}
 	mux.HandleFunc("/{$}", page(`<!doctype html><html><head>
-<link rel="stylesheet" href="/css/site.css?v=3">
+<link rel="stylesheet" href="/css/site.css?v=3" integrity="sha384-x" crossorigin="anonymous">
 <link rel="icon" href="favicon.ico">
 <link rel="canonical" href="/">
 </head><body>
@@ -48,11 +48,11 @@ func testSite(t *testing.T) (*httptest.Server, *httptest.Server) {
 <a href="/private/secret">Secret</a>
 <a href="mailto:a@b.c">Mail</a>
 <a href="#here">Jump</a>
-<img src="/img/a b.png" srcset="/img/a b.png 1x, CDN/photo 2x">
+<img src="/img/a b.png" srcset="/img/a%20b.png 1x, CDN/photo 2x">
 <div style="background:url('/img/bg.png')"></div>
 <a href="/missing">Missing</a>
 </body></html>`))
-	mux.HandleFunc("/about", page(`<html><body><a href="/">Home</a><a href="./team/">Team</a><img src="img/a%20b.png"></body></html>`))
+	mux.HandleFunc("/about", page(`<html><body><a href="/">Home</a><a href="/about/team/">Team</a><img src="img/a%20b.png"></body></html>`))
 	mux.HandleFunc("/about/team/", page(`<html><body><a href="../../">Home</a><a href="/about#x">About</a></body></html>`))
 	mux.HandleFunc("/shop/item", page(`<html><body>Item <a href="/con">Con</a></body></html>`))
 	mux.HandleFunc("/con", page(`<html><body>reserved name</body></html>`))
@@ -65,12 +65,15 @@ func testSite(t *testing.T) (*httptest.Server, *httptest.Server) {
 		w.Header().Set("Content-Type", "text/css")
 		fmt.Fprint(w, `p{color:red}`)
 	})
-	for _, p := range []string{"/img/a b.png", "/img/bg.png", "/favicon.ico"} {
-		mux.HandleFunc(p, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/img/a b.png", "/img/bg.png", "/favicon.ico":
 			w.Header().Set("Content-Type", "image/png")
 			w.Write(png1x1)
-		})
-	}
+		default:
+			http.NotFound(w, r)
+		}
+	})
 	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "User-agent: *\nDisallow: /private/\n")
 	})
@@ -133,6 +136,9 @@ func TestCloneSite(t *testing.T) {
 		if !strings.Contains(index, want) {
 			t.Errorf("index.html lacks %s\n%s", want, index)
 		}
+	}
+	if strings.Contains(index, "integrity") || strings.Contains(index, "crossorigin") {
+		t.Error("integrity or crossorigin kept on a local stylesheet")
 	}
 	about := read(t, filepath.Join(root, "about", "index.html"))
 	for _, want := range []string{`href="../index.html"`, `href="team/index.html"`, `src="../img/a%20b.png"`} {
@@ -214,7 +220,7 @@ func TestLocalPath(t *testing.T) {
 		{"https://example.com/", "text/html", "index.html"},
 		{"https://www.example.com/a/b", "text/html", "a/b/index.html"},
 		{"https://www.example.com/a/b.html", "text/html", "a/b.html"},
-		{"https://www.example.com/x/../../etc/passwd", "text/plain", "x/_/_/etc/passwd.txt"},
+		{"https://www.example.com/x/../../etc/passwd", "text/plain", "x/etc/passwd.txt"},
 		{"https://www.example.com/pic", "image/jpeg", "pic.jpg"},
 		{"https://www.example.com/a:b*c.png", "image/png", "a_b_c.png"},
 		{"https://cdn.other.net/f.css?x=1", "text/css", "_external/cdn.other.net/f-q" + shortHash("x=1") + ".css"},
@@ -234,7 +240,7 @@ func TestLocalPath(t *testing.T) {
 }
 
 func TestSrcset(t *testing.T) {
-	got := parseSrcset("a.png 1x,b,c.png 2x, d(1).png 300w")
+	got := parseSrcset("a.png 1x,b, c.png 2x, d(1).png 300w")
 	want := [][2]string{{"a.png", "1x"}, {"b", ""}, {"c.png", "2x"}, {"d(1).png", "300w"}}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("got %v", got)

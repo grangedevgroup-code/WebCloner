@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -53,6 +54,7 @@ type gui struct {
 	running bool
 	result  *cloner.Result
 	browser string
+	do      func(func())
 }
 
 func defaultFolder() string {
@@ -67,16 +69,20 @@ func defaultFolder() string {
 }
 
 func runGUI() {
-	a := app.NewWithID(appID)
-	g := &gui{app: a, prefs: a.Preferences(), browser: cloner.FindBrowser()}
-	g.win = a.NewWindow("WebCloner")
-	g.build()
-	g.win.SetCloseIntercept(g.exit)
-	g.win.Resize(fyne.NewSize(680, 560))
+	g := newGUI(app.NewWithID(appID), cloner.FindBrowser())
 	g.win.CenterOnScreen()
 	g.win.Canvas().Focus(g.url)
 	go g.refreshLoop()
 	g.win.ShowAndRun()
+}
+
+func newGUI(a fyne.App, browser string) *gui {
+	g := &gui{app: a, prefs: a.Preferences(), browser: browser, do: fyne.Do}
+	g.win = a.NewWindow("WebCloner")
+	g.build()
+	g.win.SetCloseIntercept(g.exit)
+	g.win.Resize(fyne.NewSize(680, 560))
+	return g
 }
 
 func (g *gui) build() {
@@ -157,12 +163,8 @@ func (g *gui) build() {
 	exit := widget.NewButtonWithIcon("Exit", theme.LogoutIcon(), g.exit)
 
 	top := container.NewVBox(form, g.js, g.robots, widget.NewSeparator(), g.status, g.counts, g.bar)
-	buttons := container.NewHBox(g.start, g.open, g.view, layoutSpacer(), exit)
+	buttons := container.NewHBox(g.start, g.open, g.view, layout.NewSpacer(), exit)
 	g.win.SetContent(container.NewPadded(container.NewBorder(top, buttons, nil, nil, g.logs)))
-}
-
-func layoutSpacer() fyne.CanvasObject {
-	return container.NewStack()
 }
 
 func (g *gui) chooseFolder() {
@@ -275,7 +277,7 @@ func (g *gui) begin() {
 	go func() {
 		res, err := cloner.Clone(ctx, opts)
 		cancel()
-		fyne.Do(func() { g.finish(res, err) })
+		g.do(func() { g.finish(res, err) })
 	}()
 }
 
@@ -389,7 +391,7 @@ func (g *gui) refreshLoop() {
 		stats := g.latest
 		rows := len(g.lines)
 		g.mu.Unlock()
-		fyne.Do(func() {
+		g.do(func() {
 			g.counts.SetText(describe(stats))
 			g.logs.Refresh()
 			if rows > 0 {

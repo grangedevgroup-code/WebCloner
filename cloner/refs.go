@@ -41,47 +41,55 @@ func walkCSS(css string, fn refFunc) string {
 func walkSrcset(v string, fn refFunc) (string, bool) {
 	changed := false
 	var out []string
-	for _, cand := range splitSrcset(v) {
-		fields := strings.Fields(cand)
-		if len(fields) == 0 {
-			continue
-		}
-		if repl, ok := fn(fields[0], refResource); ok {
-			fields[0] = repl
+	for _, c := range parseSrcset(v) {
+		u := c[0]
+		if repl, ok := fn(u, refResource); ok {
+			u = repl
 			changed = true
 		}
-		out = append(out, strings.Join(fields, " "))
+		if c[1] != "" {
+			u += " " + c[1]
+		}
+		out = append(out, u)
 	}
 	return strings.Join(out, ", "), changed
 }
 
-func splitSrcset(v string) []string {
-	var parts []string
-	var cur strings.Builder
-	inURL := true
-	for i := 0; i < len(v); i++ {
-		c := v[i]
-		switch {
-		case c == ',' && !inURL:
-			parts = append(parts, cur.String())
-			cur.Reset()
-			inURL = true
-			continue
-		case c == ',' && inURL && (i+1 == len(v) || v[i+1] == ' '):
-			parts = append(parts, cur.String())
-			cur.Reset()
-			continue
-		case c == ' ' || c == '\t' || c == '\n':
-			if strings.TrimSpace(cur.String()) != "" {
-				inURL = false
-			}
+func parseSrcset(v string) [][2]string {
+	var out [][2]string
+	i := 0
+	isSpace := func(b byte) bool { return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' }
+	for i < len(v) {
+		for i < len(v) && (isSpace(v[i]) || v[i] == ',') {
+			i++
 		}
-		cur.WriteByte(c)
+		if i >= len(v) {
+			break
+		}
+		start := i
+		for i < len(v) && !isSpace(v[i]) {
+			i++
+		}
+		u := v[start:i]
+		if strings.HasSuffix(u, ",") {
+			out = append(out, [2]string{strings.TrimRight(u, ","), ""})
+			continue
+		}
+		dstart := i
+		depth := 0
+		for i < len(v) {
+			if v[i] == '(' {
+				depth++
+			} else if v[i] == ')' && depth > 0 {
+				depth--
+			} else if v[i] == ',' && depth == 0 {
+				break
+			}
+			i++
+		}
+		out = append(out, [2]string{u, strings.TrimSpace(v[dstart:i])})
 	}
-	if strings.TrimSpace(cur.String()) != "" {
-		parts = append(parts, cur.String())
-	}
-	return parts
+	return out
 }
 
 var resourceRels = map[string]bool{
@@ -258,6 +266,45 @@ func setUTF8Charset(doc *html.Node) {
 						}
 					}
 				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			visit(c)
+		}
+	}
+	visit(doc)
+}
+
+func isLocalRef(v string) bool {
+	v = strings.TrimSpace(v)
+	if v == "" || strings.HasPrefix(v, "#") || strings.HasPrefix(v, "//") {
+		return false
+	}
+	return !strings.Contains(strings.SplitN(v, "/", 2)[0], ":")
+}
+
+func dropIntegrity(doc *html.Node) {
+	var visit func(*html.Node)
+	visit = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			local := false
+			for _, a := range n.Attr {
+				switch strings.ToLower(a.Key) {
+				case "src", "href", "poster", "data":
+					if isLocalRef(a.Val) {
+						local = true
+					}
+				}
+			}
+			if local {
+				kept := n.Attr[:0]
+				for _, a := range n.Attr {
+					k := strings.ToLower(a.Key)
+					if k != "integrity" && k != "crossorigin" {
+						kept = append(kept, a)
+					}
+				}
+				n.Attr = kept
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {

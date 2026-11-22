@@ -14,37 +14,37 @@ import (
 const maxSegment = 80
 
 var mimeExt = map[string]string{
-	"text/html":                ".html",
-	"application/xhtml+xml":    ".html",
-	"text/css":                 ".css",
-	"text/javascript":          ".js",
-	"application/javascript":   ".js",
-	"application/x-javascript": ".js",
-	"application/json":         ".json",
+	"text/html":                 ".html",
+	"application/xhtml+xml":     ".html",
+	"text/css":                  ".css",
+	"text/javascript":           ".js",
+	"application/javascript":    ".js",
+	"application/x-javascript":  ".js",
+	"application/json":          ".json",
 	"application/manifest+json": ".webmanifest",
-	"application/pdf":          ".pdf",
-	"application/xml":          ".xml",
-	"text/xml":                 ".xml",
-	"text/plain":               ".txt",
-	"image/jpeg":               ".jpg",
-	"image/png":                ".png",
-	"image/gif":                ".gif",
-	"image/webp":               ".webp",
-	"image/avif":               ".avif",
-	"image/svg+xml":            ".svg",
-	"image/x-icon":             ".ico",
-	"image/vnd.microsoft.icon": ".ico",
-	"font/woff2":               ".woff2",
-	"font/woff":                ".woff",
-	"font/ttf":                 ".ttf",
-	"font/otf":                 ".otf",
-	"application/font-woff":    ".woff",
-	"application/font-woff2":   ".woff2",
-	"video/mp4":                ".mp4",
-	"video/webm":               ".webm",
-	"audio/mpeg":               ".mp3",
-	"audio/ogg":                ".ogg",
-	"audio/wav":                ".wav",
+	"application/pdf":           ".pdf",
+	"application/xml":           ".xml",
+	"text/xml":                  ".xml",
+	"text/plain":                ".txt",
+	"image/jpeg":                ".jpg",
+	"image/png":                 ".png",
+	"image/gif":                 ".gif",
+	"image/webp":                ".webp",
+	"image/avif":                ".avif",
+	"image/svg+xml":             ".svg",
+	"image/x-icon":              ".ico",
+	"image/vnd.microsoft.icon":  ".ico",
+	"font/woff2":                ".woff2",
+	"font/woff":                 ".woff",
+	"font/ttf":                  ".ttf",
+	"font/otf":                  ".otf",
+	"application/font-woff":     ".woff",
+	"application/font-woff2":    ".woff2",
+	"video/mp4":                 ".mp4",
+	"video/webm":                ".webm",
+	"audio/mpeg":                ".mp3",
+	"audio/ogg":                 ".ogg",
+	"audio/wav":                 ".wav",
 }
 
 var windowsReserved = map[string]bool{
@@ -135,7 +135,7 @@ func localPath(u *url.URL, contentType string, site *url.URL) string {
 	raw := u.EscapedPath()
 	trailing := raw == "" || strings.HasSuffix(raw, "/")
 	var segs []string
-	for _, s := range strings.Split(raw, "/") {
+	for s := range strings.SplitSeq(raw, "/") {
 		if s == "" || s == "." || s == ".." {
 			continue
 		}
@@ -188,7 +188,7 @@ func relativeRef(fromFile, toFile string) string {
 }
 
 func sameSite(u, site *url.URL) bool {
-	return strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.") == strings.TrimPrefix(strings.ToLower(site.Hostname()), "www.")
+	return strings.TrimPrefix(strings.ToLower(u.Host), "www.") == strings.TrimPrefix(strings.ToLower(site.Host), "www.")
 }
 
 func normalize(raw string, base *url.URL) (*url.URL, bool) {

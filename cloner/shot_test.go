@@ -31,6 +31,10 @@ func TestScreenshot(t *testing.T) {
 	if _, err := chromedp.Run(tab, chromedp.Evaluate[bool](settleScript, chromedp.EvalAwaitPromise)); err != nil {
 		t.Fatal(err)
 	}
+	if expr := os.Getenv("WEBCLONER_SHOT_EVAL"); expr != "" {
+		v, err := chromedp.Run(tab, chromedp.Evaluate[string](expr))
+		t.Log(v, err)
+	}
 	png, err := chromedp.Run(tab, chromedp.FullScreenshot(80))
 	if err != nil {
 		t.Fatal(err)

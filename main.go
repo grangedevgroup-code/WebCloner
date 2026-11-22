@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/grangedevgroup-code/WebCloner/cloner"
 )
 
-var version = "dev"
-
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || strings.HasPrefix(os.Args[1], "-psn_") {
 		runGUI()
 		return
 	}

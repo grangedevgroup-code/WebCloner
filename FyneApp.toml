@@ -1,0 +1,12 @@
+[Details]
+  Icon = "Icon.png"
+  Name = "WebCloner"
+  ID = "io.github.grangedevgroup_code.webcloner"
+  Version = "0.1.0"
+  Build = 1
+
+[LinuxAndBSD]
+  GenericName = "Website copier"
+  Categories = ["Network", "Utility"]
+  Comment = "Copy a website to a folder on your computer"
+  Keywords = ["website", "download", "mirror", "offline", "clone"]

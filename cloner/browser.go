@@ -92,7 +92,7 @@ func (r *renderer) start(ctx context.Context) error {
 	)
 	alloc, cancelAlloc := chromedp.NewExecAllocator(ctx, opts...)
 	browser, cancelBrowser := chromedp.NewContext(alloc)
-	if err := chromedp.Run(browser); err != nil {
+	if err := chromedp.Do(browser); err != nil {
 		cancelBrowser()
 		cancelAlloc()
 		return fmt.Errorf("could not start the browser at %s: %w", r.execPath, err)
@@ -121,6 +121,20 @@ const settleScript = `(async () => {
 })()`
 
 const snapshotScript = `(() => {
+  const frozen = new Set();
+  for (const a of document.getAnimations()) {
+    try {
+      const target = a.effect && a.effect.target;
+      if (!target || !target.isConnected || target instanceof CSSPseudoElement) continue;
+      const timed = !a.timeline || a.timeline instanceof DocumentTimeline;
+      const finite = a.effect.getTiming().iterations !== Infinity;
+      if (!timed || !finite) continue;
+      a.finish();
+      a.commitStyles();
+      if (typeof CSSAnimation !== 'undefined' && a instanceof CSSAnimation) frozen.add(target);
+    } catch (e) {}
+  }
+  for (const el of frozen) el.style.setProperty('animation', 'none', 'important');
   for (const img of document.images) {
     if (img.loading === 'lazy') img.removeAttribute('loading');
   }
@@ -144,20 +158,17 @@ func (r *renderer) render(ctx context.Context, pageURL string) (string, error) {
 	defer cancelTimeout()
 	stop := context.AfterFunc(ctx, cancelTab)
 	defer stop()
-	var ok bool
-	var doc string
-	err := chromedp.Run(tab,
+	err := chromedp.Do(tab,
 		chromedp.Navigate(pageURL),
-		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.Evaluate(settleScript, &ok, func(p *chromedp.EvaluateParams) *chromedp.EvaluateParams {
-			return p.WithAwaitPromise(true)
-		}),
-		chromedp.Evaluate(snapshotScript, &doc),
+		chromedp.WaitReady(chromedp.CSS("body")),
 	)
 	if err != nil {
 		return "", err
 	}
-	return doc, nil
+	if _, err := chromedp.Run(tab, chromedp.Evaluate[bool](settleScript, chromedp.EvalAwaitPromise)); err != nil {
+		return "", err
+	}
+	return chromedp.Run(tab, chromedp.Evaluate[string](snapshotScript))
 }
 
 func (r *renderer) close() {
