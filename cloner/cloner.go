@@ -189,7 +189,15 @@ func ParseSiteURL(raw string) (*url.URL, error) {
 }
 
 func key(u *url.URL) string {
-	k := strings.TrimPrefix(strings.ToLower(u.Host), "www.") + u.EscapedPath()
+	p := u.EscapedPath()
+	lower := strings.ToLower(p)
+	for _, idx := range []string{"/index.html", "/index.htm"} {
+		if strings.HasSuffix(lower, idx) {
+			p = p[:len(p)-len(idx)+1]
+			break
+		}
+	}
+	k := strings.TrimPrefix(strings.ToLower(u.Host), "www.") + p
 	if u.RawQuery != "" {
 		k += "?" + u.RawQuery
 	}

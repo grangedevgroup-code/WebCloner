@@ -53,7 +53,7 @@ func testSite(t *testing.T) (*httptest.Server, *httptest.Server) {
 <a href="/missing">Missing</a>
 </body></html>`))
 	mux.HandleFunc("/about", page(`<html><body><a href="/">Home</a><a href="/about/team/">Team</a><img src="img/a%20b.png"></body></html>`))
-	mux.HandleFunc("/about/team/", page(`<html><body><a href="../../">Home</a><a href="/about#x">About</a></body></html>`))
+	mux.HandleFunc("/about/team/", page(`<html><body><a href="../../">Home</a><a href="/about#x">About</a><a href="/index.html">Index</a></body></html>`))
 	mux.HandleFunc("/shop/item", page(`<html><body>Item <a href="/con">Con</a></body></html>`))
 	mux.HandleFunc("/con", page(`<html><body>reserved name</body></html>`))
 	mux.HandleFunc("/private/secret", page(`<html><body>secret</body></html>`))
@@ -147,6 +147,12 @@ func TestCloneSite(t *testing.T) {
 		}
 	}
 	team := read(t, filepath.Join(root, "about", "team", "index.html"))
+	if strings.Count(team, `href="../../index.html"`) != 2 {
+		t.Errorf("/index.html not treated as the home page\n%s", team)
+	}
+	if extra, _ := filepath.Glob(filepath.Join(root, "index-*.html")); len(extra) > 0 {
+		t.Errorf("home page saved twice: %v", extra)
+	}
 	if !strings.Contains(team, `href="../../index.html"`) || !strings.Contains(team, `href="../index.html#x"`) {
 		t.Errorf("team links wrong\n%s", team)
 	}
