@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  FYNE_TOOLS: fyne.io/tools/cmd/fyne@v1.7.4
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: amd64
+          - runner: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: go.mod
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+      - name: Check the tag matches FyneApp.toml
+        env:
+          TAG: ${{ github.ref_name }}
+        run: grep -q "Version = \"${TAG#v}\"" FyneApp.toml
+      - run: go test -count=1 ./...
+      - name: Package
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          go install "$FYNE_TOOLS"
+          go build -trimpath -ldflags "-s -w" -o webcloner .
+          ./webcloner version
+          "$(go env GOPATH)/bin/fyne" package -os linux --exe webcloner --name WebCloner --release
+          mv WebCloner.tar.xz "WebCloner-linux-${ARCH}.tar.xz"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: linux-${{ matrix.arch }}
+          path: WebCloner-linux-${{ matrix.arch }}.tar.xz
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: go.mod
+      - run: go test -count=1 ./...
+      - name: Package
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CGO_ENABLED: "1"
+        run: |
+          go install "$FYNE_TOOLS"
+          GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o webcloner-arm64 .
+          GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o webcloner-amd64 .
+          lipo -create -output webcloner webcloner-arm64 webcloner-amd64
+          lipo -info webcloner
+          ./webcloner version
+          "$(go env GOPATH)/bin/fyne" package -os darwin --exe webcloner --name WebCloner --release
+          codesign --force --deep --sign - WebCloner.app
+          ditto -c -k --keepParent WebCloner.app WebCloner-macos.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: macos
+          path: WebCloner-macos.zip
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: go.mod
+      - run: go test -count=1 ./...
+      - name: Package
+        run: |
+          go install "$FYNE_TOOLS"
+          "$(go env GOPATH)/bin/fyne" package -os windows --name WebCloner --release
+          ls -la
+          7z a WebCloner-windows-amd64.zip WebCloner.exe LICENSE README.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: windows
+          path: WebCloner-windows-amd64.zip
+          if-no-files-found: error
+
+  release:
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          merge-multiple: true
+      - run: sha256sum WebCloner-* > SHA256SUMS
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" WebCloner-* SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "WebCloner $TAG" --generate-notes
